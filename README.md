@@ -306,15 +306,18 @@ go vet ./...
 Validating the Caddyfile needs the environment populated — it expands
 `{$ACME_EMAIL}` and friends in place, so with an empty environment the global
 `email` directive has no argument and Caddy rejects a config that is actually
-fine. Validation only cares that the values are non-empty, so pass throwaway
-ones rather than your real `.env` (see the warning in `.env.example`: that
-file is escaped for Compose and is misread by anything else):
+fine. Three of the four variables only need to be non-empty, but
+`STATUS_BASIC_AUTH` is parsed when Caddy provisions the auth handler, so it has
+to be bcrypt-shaped. It also has to be **single-quoted**: unquoted, the shell
+expands `$2` and `$14` to nothing and you get the same failure. Pass throwaway
+values rather than your real `.env`, which is escaped for Compose and is
+misread by anything else:
 
 ```bash
 docker run --rm \
   -e ACME_EMAIL=you@example.com \
   -e NTFY_DOMAIN=ntfy.example.com -e PAGER_DOMAIN=pager.example.com \
-  -e STATUS_BASIC_AUTH=placeholder \
+  -e 'STATUS_BASIC_AUTH=$2a$14$abcdefghijklmnopqrstuv' \
   -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" \
   caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 ```
