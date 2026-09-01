@@ -1,5 +1,11 @@
-# Four services on one internal network. Only Caddy publishes ports, so Redis,
-# ntfy and the monitor are unreachable from outside the host.
+# Three services on one internal network.
+#
+# This host already runs nginx on 80/443, so the caddy service is removed and
+# nginx terminates TLS instead (see README). pager and ntfy publish on the
+# loopback interface only, so nothing is reachable from outside except through
+# nginx. Redis stays entirely on the internal network.
+#
+# The Caddyfile is kept in the repo for clean-box deploys.
 #
 # Copy .env.example to .env and fill it in before the first `docker compose up`.
 
@@ -29,6 +35,9 @@ services:
       RECOVERY_THRESHOLD: ${RECOVERY_THRESHOLD:-2}
       CHECKS_FILE: /app/checks.yaml
       LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      # Loopback only: nginx proxies to this, nothing else can reach it.
+      - "127.0.0.1:8080:8080"
     volumes:
       # Mounted read-only so `docker compose restart pager` picks up edits
       # without a rebuild.
@@ -65,28 +74,12 @@ services:
       # the topic name can read your alerts and publish fake ones.
       NTFY_AUTH_DEFAULT_ACCESS: "deny-all"
       NTFY_ATTACHMENT_CACHE_DIR: /var/cache/ntfy/attachments
+    ports:
+      # Loopback only: nginx proxies to this, nothing else can reach it.
+      - "127.0.0.1:8081:80"
     volumes:
       - ntfy-cache:/var/cache/ntfy
       - ntfy-data:/var/lib/ntfy
-    networks: [internal]
-
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    depends_on: [pager, ntfy]
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    environment:
-      NTFY_DOMAIN: ${NTFY_DOMAIN:?set NTFY_DOMAIN in .env}
-      PAGER_DOMAIN: ${PAGER_DOMAIN:?set PAGER_DOMAIN in .env}
-      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
-      STATUS_BASIC_AUTH: ${STATUS_BASIC_AUTH:?set STATUS_BASIC_AUTH in .env}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
-      - caddy-config:/config
     networks: [internal]
 
 networks:
@@ -97,5 +90,3 @@ volumes:
   redis-data:
   ntfy-cache:
   ntfy-data:
-  caddy-data:
-  caddy-config:

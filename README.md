@@ -34,6 +34,26 @@ down check can come back up, so a flap inside a threshold changes nothing.
 
 ## Setup
 
+> ### Deployment note: this host runs nginx, not Caddy
+>
+> The `caddy` service has been removed from `docker-compose.yml` on this
+> server, because nginx was already bound to ports 80 and 443 serving other
+> sites. `pager` and `ntfy` publish on the loopback interface only
+> (`127.0.0.1:8080` and `127.0.0.1:8081`) and nginx reverse-proxies to them;
+> certbot issues the certificates instead of Caddy's built-in ACME.
+>
+> The `Caddyfile` is still in the repo and still validates — it remains the
+> right path for a clean box with nothing else on 80/443. The nginx equivalents
+> live in `deploy/nginx/`, installed by `deploy/install-nginx.sh`, and they
+> reproduce the Caddyfile's routing exactly: `/health` and `/ack/*` open,
+> `/status` behind basic auth, everything else 404, plus `proxy_buffering off`
+> on the ntfy vhost in place of Caddy's `flush_interval -1`.
+>
+> The auth split is load-bearing, not stylistic. `/health` must be reachable by
+> an external heartbeat with no credentials, and `/ack/*` must work from a
+> phone the instant a page arrives — the per-incident random token in the URL
+> is the authorisation there, not a password prompt.
+
 ### 1. DNS
 
 Point two names at the host, both as A/AAAA records:
