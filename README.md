@@ -283,13 +283,18 @@ go test -race ./...
 go vet ./...
 ```
 
-Validating the Caddyfile needs the environment populated — it reads
-`{$ACME_EMAIL}` and expands it in place, so a bare `email` directive is a
-parse error and validating with an empty environment fails on a config that
-is actually fine:
+Validating the Caddyfile needs the environment populated — it expands
+`{$ACME_EMAIL}` and friends in place, so with an empty environment the global
+`email` directive has no argument and Caddy rejects a config that is actually
+fine. Validation only cares that the values are non-empty, so pass throwaway
+ones rather than your real `.env` (see the warning in `.env.example`: that
+file is escaped for Compose and is misread by anything else):
 
 ```bash
-docker run --rm --env-file .env \
+docker run --rm \
+  -e ACME_EMAIL=you@example.com \
+  -e NTFY_DOMAIN=ntfy.example.com -e PAGER_DOMAIN=pager.example.com \
+  -e STATUS_BASIC_AUTH=placeholder \
   -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" \
   caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 ```
