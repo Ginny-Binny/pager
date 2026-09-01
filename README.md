@@ -279,7 +279,19 @@ starts up and pages nobody is worse than one that refuses to start.
 
 ```bash
 go test ./...
+go test -race ./...
 go vet ./...
+```
+
+Validating the Caddyfile needs the environment populated — it reads
+`{$ACME_EMAIL}` and expands it in place, so a bare `email` directive is a
+parse error and validating with an empty environment fails on a config that
+is actually fine:
+
+```bash
+docker run --rm --env-file .env \
+  -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" \
+  caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 ```
 
 Tests use [miniredis](https://github.com/alicebob/miniredis), including for the

@@ -6,5 +6,7 @@
 /pager.exe
 /out/
 
-# Per-machine Claude Code overrides
-.claude/settings.local.json
+# Claude Code settings are per-developer, not project policy. A committed
+# settings.json silently pre-approves tool permissions for everyone who clones
+# the repo, which is not something a repo should decide on your behalf.
+.claude/
