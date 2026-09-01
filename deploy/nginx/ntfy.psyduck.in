@@ -1,0 +1,39 @@
+# ntfy.psyduck.in — reverse proxy for the self-hosted ntfy server.
+#
+# Access control lives in ntfy itself (auth-default-access: deny-all), not
+# here: the Android app authenticates with its own token. Adding basic auth in
+# front would break the app.
+#
+# The ntfy container publishes on 127.0.0.1:8081 only.
+
+server {
+    server_name ntfy.psyduck.in;
+
+    # ntfy uploads are capped server-side; keep nginx from rejecting first.
+    client_max_body_size 20M;
+
+    location / {
+        proxy_pass http://127.0.0.1:8081;
+        proxy_http_version 1.1;
+
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Subscriptions are long-lived streams (SSE, JSON and WebSocket).
+        # This is the nginx equivalent of the Caddyfile's `flush_interval -1`:
+        # without it nginx buffers the stream and delays every notification.
+        proxy_buffering off;
+        proxy_cache off;
+
+        # WebSocket upgrade for the Android app's /ws endpoint.
+        proxy_set_header Upgrade    $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+
+        # A subscription holds the connection open indefinitely; the default
+        # 60s read timeout would tear it down every minute.
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+}
