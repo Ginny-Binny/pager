@@ -1,0 +1,56 @@
+# Endpoints this monitor polls.
+#
+# Required per check:
+#   name  short identifier; must match [A-Za-z0-9_-]{1,64}
+#         (it becomes a Redis key segment and a /ack/{check} URL segment)
+#   url   http(s) URL, fetched with GET and no auth
+#
+# Optional per check — all unset by default, so healthy just means
+# "HTTP 200 within the timeout":
+#   expected_status   int     status code that counts as healthy   (default 200)
+#   body_contains     string  substring that must appear in the body
+#   json_path         string  dot path into the JSON response (see below)
+#   expected_value    string  value json_path must equal; required with json_path
+#   max_latency_ms    int     fail even on 200 if slower than this
+#                             (must not exceed timeout_ms, or it can never fire)
+#   timeout_ms        int     per-probe timeout                    (default 5000)
+#   follow_redirects  bool    default false — a redirect on a status endpoint
+#                             is a misconfiguration worth seeing, not chasing
+#
+# json_path is a dot path, not full JSONPath: object keys and numeric array
+# indices only, e.g. "status", "data.db.ok", "items.0.name". No wildcards,
+# filters or recursive descent — this keeps the dependency list to go-redis
+# and a YAML parser.
+
+checks:
+  # Pabbly Connect Express backend. Mounted at /backend behind the reverse
+  # proxy; the app's own route is /status.
+  - name: connect-backend
+    url: https://connect.pabbly.com/backend/status
+    # expected_status: 200
+    # max_latency_ms: 2000
+    # body_contains: "success"
+    # json_path: status
+    # expected_value: success
+
+  # Pabbly Connect PHP app (CodeIgniter). This one actually runs SELECT 1
+  # against MySQL and returns 503 when the database is unreachable, so it is
+  # the most meaningful of the three.
+  - name: connect-app
+    url: https://connect.pabbly.com/api/status
+    # expected_status: 200
+    # max_latency_ms: 2000
+    # body_contains: "OK"
+    # json_path: status
+    # expected_value: success
+
+  # Workflow runner / scheduler (pc-triggerworkflow-app): polling, scheduled,
+  # delay and auto-retry workflows. The /prod prefix and /v1 segment are added
+  # by its config/routes.js in production — /api/status alone is a 404 there.
+  - name: scheduler
+    url: https://pc-workflow-runner.pabbly.com/prod/api/v1/status
+    # expected_status: 200
+    # max_latency_ms: 2000
+    # body_contains: "Container is up and running"
+    # json_path: status
+    # expected_value: Success

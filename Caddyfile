@@ -1,0 +1,52 @@
+# TLS for both subdomains. Caddy obtains and renews certificates on its own;
+# ports 80 and 443 must reach this host and both names must resolve to it.
+
+{
+	email {$ACME_EMAIL}
+}
+
+# ── ntfy ──────────────────────────────────────────────────────────────────
+# Access control lives in ntfy itself (auth-default-access: deny-all), not
+# here: the Android app authenticates with its own token.
+{$NTFY_DOMAIN} {
+	reverse_proxy ntfy:80 {
+		# Subscriptions are long-lived streams; the default flush behaviour
+		# would buffer them and delay delivery.
+		flush_interval -1
+	}
+}
+
+# ── monitor ───────────────────────────────────────────────────────────────
+{$PAGER_DOMAIN} {
+	# Open: an external heartbeat service must reach this without credentials,
+	# and it only ever discloses a timestamp.
+	handle /health {
+		reverse_proxy pager:8080
+	}
+
+	# Open: the ack link has to work from a phone the moment a page arrives,
+	# and a credential prompt at 3am is exactly the wrong friction. The token
+	# in the link is what authorises it.
+	handle /ack/* {
+		reverse_proxy pager:8080
+	}
+
+	# Guarded: /status lists every internal check name and URL. Generate the
+	# hash with:  docker run --rm caddy:2-alpine caddy hash-password
+	handle /status {
+		basic_auth {
+			admin {$STATUS_BASIC_AUTH}
+		}
+		reverse_proxy pager:8080
+	}
+
+	handle {
+		respond "not found" 404
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+	}
+}

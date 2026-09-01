@@ -1,0 +1,10 @@
+# Contains NTFY_TOKEN and the /status password hash.
+.env
+
+# Build output
+/pager
+/pager.exe
+/out/
+
+# Per-machine Claude Code overrides
+.claude/settings.local.json

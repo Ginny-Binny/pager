@@ -1,0 +1,3 @@
+# Normalise to LF in the repository. These files are consumed inside Linux
+# containers, where CRLF in the Caddyfile or checks.yaml causes parse errors.
+* text=auto eol=lf
